@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>File storage</title>
+    <link rel="icon" href="{{url_for('static',filename='file.ico')}}" >
+    <!-- Bootstrap core CSS -->
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="/static/dashboard.css" rel="stylesheet">
+    <link href="/static/sidebar.css" rel="stylesheet">
+    <style type="text/css">
+      .goto-button:hover{
+        cursor:pointer;
+      }
+      .remove-button:hover{
+        cursor:pointer;
+      }
+      .restore-button:hover{
+        cursor:pointer;
+      }
+      .syn-button:hover{
+        cursor:pointer;
+      }
+      .bin-button:hover{
+        cursor:pointer;
+      }
+      .delete-menu:hover{
+        cursor:pointer;
+      }
+      .download-menu:hover{
+        cursor:pointer;
+      }
+      .clr:hover{
+        cursor:pointer;
+      }
+      .file:hover{
+        background-color: WhiteSmoke;
+        cursor:pointer;
+      }
+      .bin-item:hover{
+        background-color: WhiteSmoke;
+        cursor:pointer;
+      }
+      .search-item:hover{
+        background-color: WhiteSmoke;
+        cursor:pointer;        
+      }
+      .file-placeholder{
+        border-style: solid;
+        border-width: 2px; 
+        border-color: white;
+      }
+      .filename{
+        overflow:hidden;
+        text-overflow:ellipsis;
+        -o-text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+      .cur{
+        background-color: rgba(135,206,235,0.4);
+        border-style: solid;
+        border-width: 2px;
+        border-color: DeepSkyBlue;
+      }
+      .bcur{
+        background-color: rgba(135,206,235,0.4);
+      }
+      .scur{
+        background-color: rgba(135,206,235,0.4);
+      }
+      .cur:hover{
+        background-color: rgba(135,206,235,0.4);
+      }
+      .bcur:hover{
+        background-color: rgba(135,206,235,0.4);
+      }
+      .scur:hover{
+        background-color: rgba(135,206,235,0.4);
+      }
+      .upload:hover{
+        background-color: rgba(135,206,235,0.4);
+        cursor:pointer;
+      }
+      .mymenu>li>a:hover{
+        background-color: DodgerBlue
+      }
+      .mya>li>a:hover{
+        background-color: Gainsboro
+      }
+      .mymenu{
+        display:block
+      }
+      #context-menu_file{
+        position:fixed;
+        display:none;
+        z-index:99;
+      }
+      #context-menu_folder{
+        position:fixed;
+        display:none;
+        z-index:99;
+      }
+      #context-menu_upload{
+        position:fixed;
+        display:none;
+        z-index:99;
+      }
+      #context-menu_bin{
+        position:fixed;
+        display:none;
+        z-index:99;
+      }
+      #context-menu_search{
+        position:fixed;
+        display:none;
+        z-index:99;
+      }
+      #selectbar>li.active{
+        font-weight: bolder;
+        font-color: white;
+      }
+      #upload-body{
+        display:none;
+      }
+      #
+    </style>
+    <script src="/static/js/jquery.min.js"></script>
+    <script> 
+      function ito3s(s){
+        return (Array(3).join('0') + s).slice(-3)
+      }
+      function reload(){
+        next_dir(get_path())
+      }
+      function fileselect(){
+        document.getElementById("fileToUpload").click(); 
+      };
+      function get_path(){
+        return eval("'"+document.getElementById("mainbody").getAttribute("name")+"'");
+      }
+      function clear(){
+        alert('hi');
+        $(this).parent(".uploaditem").remove()
+      }
+      var uid = 0;
+      var did = 0;
+      function fileupload(path){
+        var files = document.getElementById("fileToUpload").files;
+        for (var i = 0; i < files.length; i++){
+        var fileobj=document.getElementById("fileToUpload").files[i];
+        var url="/upload/"+get_path();
+        var form=new FormData();
+        form.append("file",fileobj)
+        $.ajax({
+          url:url,
+          type:"post",
+          async:true,
+          data:form,
+          processData:false,
+          contentType:false,
+          xhr:function(){
+            myxhr = $.ajaxSettings.xhr();
+            $("#selectbar").children().eq(1).children('a').click();
+            var div = $("#upload-body").children('.main');
+            var id = uid;
+            uid += 1;
+            var fdiv = $('<div class="col-sm-10 record">')
+            var namediv = $('<div class="col-sm-8">'+fileobj.name+'</div>');
+            var progressdiv = $('<div class="col-sm-1">progress:0%</div>');
+            var clear = $('<div class="col-sm-1 col-sm-offset-2"><img class="clr" src="/static/icon/clr.ico"></div>');
+            progressdiv.attr("id", "uprogress"+id);
+            var bardiv = $('<div class="progress progress-small">\
+                              <div class="progress-bar" style="width:0%"></div>\
+                            </div>');
+            bardiv.children('div').attr("id","uprogressbar"+id);
+            fdiv.append(namediv).append(progressdiv).append(clear).append('<div class="clearfix"></div>').append(bardiv);
+            div.append(fdiv);
+            myxhr.upload.addEventListener('progress', function(e){
+              var loaded = e.loaded;
+              var total = e.total;
+              var percent = Math.floor(100*loaded/total) + "%";
+              $("#uprogressbar"+id).css("width", percent);
+              document.getElementById("uprogress" + id).innerHTML="progress:"+percent;
+            }, false);
+            return myxhr;
+          },
+          success:function (res) {
+            let data = JSON.parse(res);
+            if (data.code == 200){
+              document.getElementById("fileToUpload").value=null
+              reload()                
+            }else {
+              alert(data.code)
+            }
+          }
+        });
+        }
+      }
+      function next_dir(pathn){
+        $.ajax({
+          url:"/c_index/"+pathn,
+          type:"get",
+          async:true,
+          success:function(res){
+            let data = JSON.parse(res)
+            if (data.code == 200){
+              $("#mainbody").children('.file').remove()
+              $("#mainbody").attr("name", data.path)
+              $("#page-title").html("View: " + data.path)
+              var mf=$("#file-inform")
+              var ub=$("#nomenu")
+              mf.children().remove()
+              var list = data.list
+              var pn = data.path
+              for (var i=0;i<list.length;i++){
+                var name=list[i][0];
+                var type=list[i][1];
+                var clas=list[i][2];
+                var id=list[i][3];
+                var size=list[i][4];
+                var time=list[i][5];
+                var h4=$('<h4 class="filename">'+name+'</h4>')
+                var span=$('<span class="text-muted">'+type+'</span>')
+                var img=$('<img width="100" height="100" class="img-responsive" alt="Generic placeholder thumbnail">')
+                img.attr("src", "/static/icon/"+clas+".ico")
+                if (type != "dir"){
+                  var ib=$('<div class="col-xs-6 col-sm-2 placeholder file file-placeholder" name="file">')
+                  ib.attr("id", name+'.'+type);
+                  ib.append(img).append(h4).append(span)
+                  ub.before(ib)
+                }
+                else{
+                  var ib=$('<div class="col-xs-6 col-sm-2 placeholder file file-placeholder" name="folder">')
+                  ib.attr("id", name);
+                  ib.append(img).append(h4).append(span)
+                  ub.before(ib)
+                }
+                var tr=$('<tr>\
+                            <td>'+ito3s(i+1)+'</td>\
+                            <td>'+name+'</td>\
+                            <td>'+type+'</td>\
+                            <td>'+size+'</td>\
+                            <td>'+time+'</td>\
+                          </tr>')
+                mf.append(tr)          
+              }
+              list = data.recycle_list
+              var body = $(".bin-placeholders")
+              body.children(".bin-item").remove()
+              for (var i=0;i<list.length;i++){
+                var name=list[i][0];
+                var type=list[i][1];
+                var clas=list[i][2];
+                var path=list[i][3];
+                var file=list[i][4];
+                var div=$('<div class="col-sm-9 col-md-10 bin-item" style="line-height:70px; text-align:left; border-bottom:1px solid #e7eaec !important;"</div>')
+                var img=$('<img style="vertical-align:middle" width="50" height="50"/>')
+                var span=$('<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name:&nbsp;'+name+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type:&nbsp;'+type+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;original_path:&nbsp;'+path+'</span>') 
+                div.attr("id", file)
+                img.attr("src", "/static/icon/"+clas+".ico")
+                div.append(img).append(span)
+                body.append(div)
+              }
+            }
+          }
+        });
+      }
+      function foldernext_dir(){
+        var fn =document.getElementById("context-menu_folder").name;
+        var pathn = get_path()+"/"+eval("'"+fn+"'")
+        next_dir(pathn);
+      }
+      function cnext_dir(fn){
+        var pathn = get_path()+"/"+eval("'"+fn+"'")
+        next_dir(pathn);
+      }
+      function download(pathn, fn){
+        $("#selectbar").children().eq(2).children('a').click();
+        var div = $("#download-body").children('.main');
+        var id = did;
+        did += 1;
+        var fdiv = $('<div class="col-sm-10 record">')
+        var namediv = $('<div class="col-sm-9">'+fn+'</div>');
+        var progressdiv = $('<div class="col-sm-1">progress:0%</div>');
+        progressdiv.attr("id", "dprogress"+id);
+        var clear = $('<div class="col-sm-1 col-sm-offset-1"><img class="clr" src="/static/icon/clr.ico"></div>')
+        var bardiv = $('<div class="progress progress-small">\
+                        <div class="progress-bar" style="width:0%"></div>\
+                        </div>');
+        bardiv.children('div').attr("id","dprogressbar"+id);
+        fdiv.append(namediv).append(progressdiv).append(clear).append('<div class="clearfix"></div>').append(bardiv);
+        div.append(fdiv);
+        var url = "/download/" + pathn;
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.setRequestHeader("If-Modified-Since", "0");
+        xhr.addEventListener("progress", function(e){
+          if (e.lengthComputable){
+            var percent = Math.floor(100*e.loaded/e.total) + "%";
+            $("#dprogressbar"+id).css("width", percent);
+            document.getElementById("dprogress" + id).innerHTML="progress:"+percent;
+          }else{
+            alert('uncomputable');
+          }         
+        }, false);
+        xhr.responseType = "blob";
+        xhr.onreadystatechange = function(){
+          if (xhr.readyState == 4 && xhr.status == 200){
+            if (typeof window.chrome !== 'undefined') {                        
+              // Chrome version
+              var link = document.createElement('a');
+              link.href = window.URL.createObjectURL(xhr.response);
+              link.download = fn;
+              link.click();
+            } else if (typeof window.navigator.msSaveBlob !== 'undefined') {                        
+              // IE version
+              var blob = new Blob([xhr.response], {type:'application/force-download'});
+              window.navigator.msSaveBlob(blob, fn);
+            } else {
+              // Firefox version
+              var file = new File([xhr.response], fn, {type:'application/force-download'});
+              window.open(URL.createObjectURL(file));
+            }            
+          }
+        }
+        xhr.send();
+      }
+      function cdownload(fn){
+        var pathn = get_path()+"/"+eval("'"+fn+"'");
+        download(pathn, eval("'"+fn+"'"));
+      }
+      function do_delete(pathn,fn){
+        $.ajax({
+          url:"/delete/"+pathn,
+          type:"DELETE",
+          success:function(res){
+            let data = JSON.parse(res);
+            if (data.code == 200){
+              reload()
+            }
+            else{
+              alert('error code:'+data.code);
+            }
+          }
+        });      
+      }
+      function goback(){
+        var pathn = get_path();
+        k = pathn.length-1;
+        while (k>0 && pathn[k]!="/") k--;
+        if (k>0) {
+          pathn = pathn.substr(0, k)
+          next_dir(pathn)
+        }
+      }
+      function newfolder(){
+        var name = prompt("input the folder name", "new folder");
+        if (name){
+          var url = "/newfolder/" + get_path();
+          $.ajax({
+            url:url,
+            type:"post",
+            contentType:"application/json;charset=utf-8",
+            data:JSON.stringify({"name": name}),
+            success:function (res) {
+              let data = JSON.parse(res);
+              if (data.code == 200){
+                reload()
+              }else {
+                alert(data.code)
+              }
+            }
+          });          
+        }
+      }
+      function synchronize(){       
+        var url = "http://127.0.0.1:8080/synchronize"
+        $.ajax({
+          url:url,
+          type:"post",
+          success:function(res){
+            let data= JSON.parse(res);
+            if (data.code != 200){
+              alert("synchronize's error")
+            }
+          }
+        })
+      }
+      function disynchronize(){       
+        var url = "http://127.0.0.1:8080/disynchronize"
+        $.ajax({
+          url:url,
+          type:"post",
+          success:function(res){
+            let data = JSON.parse(res);
+            if (data.code != 200){
+              alert("error")
+            }
+          }
+        })
+      }
+      function do_remove(path){
+        var url = "/remove/" + path
+        $.ajax({
+          url:url,
+          type:"DELETE",
+          success:function(res){
+            let data = JSON.parse(res);
+            if (data.code != 200)alert("remove error")
+            else reload() 
+          }
+        })
+      }
+      function do_restore(path){
+        var url = "/restore/" + path
+        $.ajax({
+          url:url,
+          type:"post",
+          success:function(res){
+            let data = JSON.parse(res);
+            if (data.code != 200)alert("restore error")
+            else reload() 
+          }
+        })        
+      }
+      function remove(){
+        files = $(".bcur")
+        var r = confirm("Are you sure to remove the " + files.length + " files?")
+        if (r == false) return
+        for (var i=0; i < files.length; i++){
+          do_remove(eval("'"+$(files[i]).attr("id")+"'"))
+        }
+      }
+      function restore(){
+        files = $(".bcur")
+        for (var i=0; i < files.length; i++){
+          do_restore(eval("'"+$(files[i]).attr("id")+"'"))
+        }
+      }      
+      function searching(){
+        $("#search_a").click();
+        var key = $("#search").val()
+        $.ajax({
+          url:"/search/"+key,
+          type:"get",
+          success:function(res){
+            let data = JSON.parse(res)
+            if (data.code == 200){
+              list = data.list
+              var body = $(".search-placeholders")
+              body.children(".search-item").remove()
+              for (var i=0;i<list.length;i++){
+                var name=list[i][0];
+                var type=list[i][1];
+                var rpath=list[i][2];
+                var apath=list[i][3];
+                var div=$('<div class="col-sm-10 col-md-11 search-item" style="line-height:70px; text-align:left; border-bottom:1px solid #e7eaec !important;"</div>')
+                var img=$('<img style="vertical-align:middle" width="50" height="50"/>')
+                var span=$('<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name:&nbsp;'+name+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;path:&nbsp;'+rpath+'</span>') 
+                div.attr("id", apath)
+                img.attr("src", "/static/icon/"+type+".ico")
+                div.append(img).append(span)
+                body.append(div)
+              }
+            }else alert("search error");
+          }
+        })
+      }
+      $(function(){
+        $("#mobile-nav-taggle").click(function () {
+          var mobileMenu = $("#mobile-menu");
+          if (mobileMenu.hasClass("show-nav")) {
+            setTimeout(function () {
+              mobileMenu.addClass("hide-nav").removeClass("show-nav");
+            }, 100)
+          }
+          else {
+            setTimeout(function (){
+              mobileMenu.addClass("show-nav").removeClass("hide-nav");
+            }, 100)
+          }
+        })
+        $(".remove-button").on("click", function(e){
+          remove();
+        });
+        $(".restore-button").on("click", function(e){
+          restore();
+        });
+        $(".syn-button").on("click", function(e){
+          if ($(this).is('.cur') == false){
+            var r = confirm("To start synchronization");
+            if (r==true) {
+              synchronize();
+              $(this).addClass('cur');
+            }
+          }else{
+            var r = confirm("To end synchronization");
+            if (r==true) {
+              disynchronize();
+              $(this).removeClass('cur');
+            }            
+          }
+        });
+        $(".download-menu").on("click", function(e){
+          files = $(".cur");
+          for (var i = 0; i < files.length; i++){
+            if ($(files[i]).attr('name')=='file'){
+              var fn = $(files[i]).attr('id')
+              var pathn = get_path()+"/"+eval("'"+fn+"'");
+              download(pathn, eval("'"+fn+"'"));
+            }
+          }
+        });
+        $(".delete-menu").on("click", function(e){
+          files = $(".cur");
+          var r=confirm("Are you sure to Delete the " + files.length + " files?");
+          if (r==true){
+            for (var i = 0; i < files.length; i++){
+              var fn = $(files[i]).attr("id");
+              var pathn = get_path()+"/"+eval("'"+fn+"'");
+              do_delete(pathn, fn);
+            }
+          }
+        });
+        $(".goto-button").on("click", function(e){
+          var path = $(".scur").attr("id");
+          next_dir(path);
+          $("#file_a").click();
+        })
+        $("#upload-body").on("click", ".main .record div .clr", function(e){
+          $(this).parent().parent().remove();
+        });
+        $("#download-body").on("click", ".main .record div .clr", function(e){
+          $(this).parent().parent().remove();
+        })
+        $(".bin-button").on("click", function(e){
+          $("#bin-body").siblings().css("display", "none");
+          $("#bin-body").css("display", "block");
+          $("#selectbar").children("li").removeClass("active");
+        })
+        $(".btn-primary").on("click", function(e){
+          
+          if ($(this).is(".Empty") == true){
+            var r = confirm("Are you sure to remove all the files?")
+            if (r==true){
+              var files = $(".bin-placeholders").children(".bin-item");
+              for (var i=0; i<files.length; i++){
+                do_remove(eval("'"+$(files[i]).attr("id")+"'"))
+              }
+            }
+          }else
+          if ($(this).is(".Restore") == true){
+            var files = $(".bin-placeholders").children(".bin-item");
+            for (var i=0; i<files.length; i++){
+              do_restore(eval("'"+$(files[i]).attr("id")+"'"))
+            }
+          }else $(this).parent().siblings(".record").remove();
+        });
+        $("#selectbar").on("click", "li a", function(e){
+          var li=$(this).parent()
+          li.siblings().removeClass("active");
+          li.addClass("active");
+          var divid = $(this).attr("href");
+          $(divid).siblings().css("display", "none");
+          $(divid).css("display", "block");
+          return false;
+        });
+        var file_menu = document.getElementById("context-menu_file");
+        var folder_menu = document.getElementById("context-menu_folder");
+        var upload_menu = document.getElementById("context-menu_upload");
+        var bin_menu = document.getElementById("context-menu_bin");
+        var search_menu = document.getElementById("context-menu_search");
+        $("#mainbody").on("click","div",function(e){
+          file_menu.style.display = "none";
+          folder_menu.style.display = "none";
+          upload_menu.style.display = "none";
+          if (!window.event.ctrlKey) $(this).siblings('div').removeClass("cur");
+          if (this.id!="nomenu") {
+            $(this).addClass("cur");
+          };
+          e.stopPropagation();
+          return false;
+        });
+        $("#search-body").on("click", ".main .row .search-item", function(e){
+          $(this).siblings('.search-item').removeClass("scur");
+          $(this).addClass("scur");
+          search_menu.style.display = "block";
+          search_menu.style.left = e.clientX + "px";
+          search_menu.style.top = e.clientY + "px";
+          e.stopPropagation()
+          return false;          
+        })
+        $("#bin-body").on("click", ".main .row .bin-item", function(e){
+          if (!window.event.ctrlKey) $(this).siblings('.bin-item').removeClass("bcur");
+          $(this).addClass("bcur");
+          bin_menu.style.display = "block";
+          bin_menu.style.left = e.clientX + "px";
+          bin_menu.style.top = e.clientY + "px";
+          e.stopPropagation()
+          return false;
+        });
+        $("#mainbody").on("click","div",function(e){
+          if (!window.event.ctrlKey) $(this).siblings('div').removeClass("cur");
+          if (this.id!="nomenu") {
+            $(this).addClass("cur");
+            if (this.getAttribute("name")=="file"){
+              file_menu.style.display = "block";
+              folder_menu.style.display = "none";
+              upload_menu.style.display = "none";
+              file_menu.style.left = e.clientX+"px";
+              file_menu.style.top = e.clientY+"px";
+              file_menu.name = this.id;
+            }else{
+              folder_menu.style.display = "block";
+              file_menu.style.display = "none";
+              upload_menu.style.display = "none";
+              folder_menu.style.left = e.clientX+"px";
+              folder_menu.style.top = e.clientY+"px";
+              folder_menu.name = this.id;              
+            };
+          } else{
+            file_menu.style.display = "none";
+            folder_menu.style.display = "none";
+            upload_menu.style.display = "none";            
+          }
+          e.stopPropagation();
+          return false;
+        });
+        $("#mainbody").on("click", function(e){
+          file_menu.style.display = "none";
+          folder_menu.style.display = "none";
+          upload_menu.style.display = "block";          
+          upload_menu.style.left = e.clientX+"px";
+          upload_menu.style.top = e.clientY+"px";
+          $(this).children("div").removeClass("cur");
+          return false;
+        });
+      
+        document.onclick=function(){
+          file_menu.style.display = "none";
+          folder_menu.style.display = "none";
+          upload_menu.style.display = "none";
+          bin_menu.style.display = "none";
+          search_menu.style.display = "none";
+          $("#mainbody").children("div").removeClass("cur");
+          $(".bin-placeholders").children("div").removeClass("bcur");
+          $(".search-placeholders").children("div").removeClass("scur");
+        };
+        document.oncontextmenu=function(){
+          file_menu.style.display = "none";
+          folder_menu.style.display = "none";
+          upload_menu.style.display = "none";
+          bin_menu.style.display = "none";
+          search_menu.style.display = "none";
+          $("#mainbody").children("div").removeClass("cur");
+          $(".bin-placeholders").children("div").removeClass("bcur"); 
+          $(".search-placeholders").children("div").removeClass("scur"); 
+          return false;
+        };
+        document.onscroll=function(){
+          file_menu.style.display = "none";
+          folder_menu.style.display = "none";
+          upload_menu.style.display = "none";
+          bin_menu.style.display = "none";
+          search_menu.style.display = "none";
+        };
+      });
+    </script>
+  </head>
+
+  <body>
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <img src = "/static/icon/toptitle.ico">
+          <a class="navbar-brand" href="#">File storage</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+          <ul id="selectbar" class="nav navbar-nav navbar-right">
+            <li class="active"><a id="file_a"href="#file-body">File</a></li>
+            <li><a href="#upload-body">Upload</a></li>
+            <li><a href="#download-body">Download</a></li>
+            <li><a id="search_a" href="#search-body">Searching</a></li>
+            <li><a href="#">Setting</a></li>
+          </ul>
+          <form class="navbar-form navbar-right">
+            <input id="search" type="text" oninput="searching()" class="form-control" placeholder="Search...">
+          </form>
+        </div>
+      </div>
+    </nav>
+    <form action="" enctype="multipart/form-data" method="post">     
+      <input type="file" id="fileToUpload" onchange="fileupload()"style="display:none" multiple="multiple" />
+    </form>
+    <div class="container-fluid">
+      <div id="upload-body" style="display:none" class="row">
+        <div class="col-sm-3 col-md-1 sidebar"></div>
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-1 main">
+          <h1 class="page-header">
+            <span> Upload </span>          
+            <button type="button" class="btn btn-primary">Clear</button>
+          </h1>
+        </div>
+      </div>
+      <div id="search-body" style="display:none" class="row">
+        <div id="context-menu_search">
+          <ul class="dropdown-menu mymenu" role="menu">
+            <li><a tabindex="-1" class="goto-button" style="background-image:url('/static/icon/goto.ico');background-repeat:no-repeat;background-position:56px">go to</a></li>       
+          </ul>
+        </div>
+        <div class="col-sm-3 col-md-1 sidebar"></div>
+        <div class="col-sm-9 col-sm-offset-3 col-md-11 col-md-offset-1 main">
+          <h1 class="page-header">
+            <span> Searching List </span>          
+          </h1>
+          <div class="row placeholders search-placeholders">
+          </div>
+        </div>
+      </div>
+      <div id="download-body" style="display:none" class="row">
+        <div class="col-sm-3 col-md-1 sidebar"></div>
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-1 main">
+          <h1 class="page-header">
+            <span> Download </span>          
+            <button type="button" class="btn btn-primary">Clear</button>
+          </h1>
+        </div>
+      </div>
+      <div id="bin-body" style="display:none" class="row">
+        <div id="context-menu_bin">
+          <ul class="dropdown-menu mymenu" role="menu">
+            <li><a tabindex="-1" class="remove-button" style="background-image:url('/static/icon/delete.ico');background-repeat:no-repeat;background-position:69px">remove</a></li>          
+            <li><a tabindex="-1" class="restore-button" style="background-image:url('/static/icon/restore.ico');background-repeat:no-repeat;background-position:65px">restore</a></li>          
+          </ul>
+        </div>
+        <div class="col-sm-3 col-md-1 sidebar"></div>
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-1 main">
+          <h1 class="page-header">
+            <span> Recycle-bin </span>
+            <button type="button" class="btn btn-primary Empty">Completely Empty</button>
+            <button type="button" class="btn btn-primary Restore">Restore All</button>
+          </h1>
+          <div class="row placeholders bin-placeholders">
+            {% for name, type, class, path, file in recycle_list %}             
+              <div id={{file | tojson}} class="col-sm-9 col-md-10 bin-item" style="line-height:70px; text-align:left; border-bottom:1px solid #e7eaec !important;">
+                <img style="vertical-align:middle" src={{"/static/icon/"+class+".ico"}} width="50" height="50"/><span>&nbsp;&nbsp;&nbsp;name:&nbsp;{{name}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type:&nbsp;{{type}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;original_path:&nbsp;{{path}}</span>
+              </div>              
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div id="file-body" class="row">
+        <div class="nav-btn visible-xs visible-sm">
+          <a href="#" class="mobile-nav-taggle" id="mobile-nav-taggle">
+            <span class="glyphicon glyphicon-align-justify"></span>
+          </a>
+        </div>
+        <div id = "mobile-menu" class="col-xs-5 col-sm-4 mobile-nav visible-xs visible-sm hide-nav">
+          <ul id="navsidebar" class="nav nav-sidebar mya">
+            <li class="active"><a href="">Overview <span class="sr-only">(current)</span></a></li>
+            <li><a href="javascript:goback()"style="background-image:url('/static/icon/return.ico');background-repeat:no-repeat;background-position:72px;">Goback</a></li>
+            <li>
+                <a href="javascript:fileselect()" style="background-image:url('/static/icon/upload.ico');background-repeat:no-repeat;background-position:69px;">Upload</a>
+            </li>
+            <li><a href="javascript:newfolder()" style="background-image:url('/static/icon/newfolder.ico');background-repeat:no-repeat;background-position:91px;">New folder</a></li>
+            <li><a class="syn-button" style="background-image:url('/static/icon/synchronize.ico');background-repeat:no-repeat;background-position:101px">Synchronize</a></li>
+            <li><a class="bin-button" style="background-image:url('/static/icon/recycle-bin.ico');background-repeat:no-repeat;background-position:98px">Recycle Bin</a></li>
+            <li><a href="{{ url_for('init') }}" style="background-image:url('/static/icon/logout.ico');background-repeat:no-repeat;background-position:61px;">Home</a></li>
+          </ul>
+        </div>
+        <div class="col-xs-4 col-sm-3 col-md-1 sidebar">
+          <ul id="navsidebar" class="nav nav-sidebar mya">
+            <li class="active"><a href="">Overview <span class="sr-only">(current)</span></a></li>
+            <li><a href="javascript:goback()"style="background-image:url('/static/icon/return.ico');background-repeat:no-repeat;background-position:72px;">Goback</a></li>
+            <li>
+                <a href="javascript:fileselect()" style="background-image:url('/static/icon/upload.ico');background-repeat:no-repeat;background-position:69px;">Upload</a>
+            </li>
+            <li><a href="javascript:newfolder()" style="background-image:url('/static/icon/newfolder.ico');background-repeat:no-repeat;background-position:91px;">New folder</a></li>
+            <li><a class="syn-button" style="background-image:url('/static/icon/synchronize.ico');background-repeat:no-repeat;background-position:101px">Synchronize</a></li>
+            <li><a class="bin-button" style="background-image:url('/static/icon/recycle-bin.ico');background-repeat:no-repeat;background-position:98px">Recycle Bin</a></li>
+            <li><a href="{{ url_for('init') }}" style="background-image:url('/static/icon/logout.ico');background-repeat:no-repeat;background-position:61px;">Home</a></li>
+          </ul>
+        </div>
+        <div class="col-xs-10 col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-1 main">
+          <h1 class="page-header">
+            <span id="page-title">View: {{path}}</span>
+          </h1>
+          <div id="context-menu_file">
+            <ul class="dropdown-menu mymenu" role="menu">
+              <li><a tabindex="-1" class="delete-menu" style="background-image:url('/static/icon/delete.ico');background-repeat:no-repeat;background-position:62px;">delete</a></li>
+              <li><a tabindex="-1" class="download-menu" style="background-image:url('/static/icon/download.ico');background-repeat:no-repeat;background-position:85px;">download</a></li>
+            </ul>             
+          </div>
+          <div id="context-menu_folder">
+            <ul class="dropdown-menu mymenu" role="menu">
+              <li><a tabindex="-1" href="javascript:foldernext_dir()" style="background-image:url('/static/icon/open.ico');background-repeat:no-repeat;background-position:55px;">open</a></li>
+              <li><a tabindex="-1" class="delete-menu" style="background-image:url('/static/icon/delete.ico');background-repeat:no-repeat;background-position:62px;">delete</a></li>
+            </ul>             
+          </div>         
+          <div id="context-menu_upload">
+            <ul class="dropdown-menu mymenu" role="menu">
+              <li><a tabindex="-1" href="javascript:fileselect()" style="background-image:url('/static/icon/upload.ico');background-repeat:no-repeat;background-position:66px;">upload</a></li>
+              <li><a tabindex="-1" href="javascript:newfolder()" style="background-image:url('/static/icon/newfolder.ico');background-repeat:no-repeat;background-position:85px;">newfolder</a></li>
+              <li><a tabindex="-1" href="javascript:reload()" style="background-image:url('/static/icon/reload.ico');background-repeat:no-repeat;background-position:62px;">reload</a></li>
+            </ul>
+          </div>
+          <div id="mainbody" name={{path|tojson}} class="row placeholders">
+            {% for name,type,class,id,size,time in list%}
+              {% if type != 'dir' %}
+                <div id={{(name+'.'+type) | tojson}} class="col-xs-6 col-sm-2 placeholder file file-placeholder"  name="file">              
+                  <img src={{"/static/icon/"+class+".ico"}} width="100" height="100" class="img-responsive" alt="Generic placeholder thumbnail">
+                  <h4 class = "filename">{{name}}</h4>
+                  <span class="text-muted">{{type}}</span>
+                </div>
+              {% else %}
+                <div id={{name | tojson}} class="col-xs-6 col-sm-2 placeholder file file-placeholder" name="folder">  
+                  <img src={{"/static/icon/"+class+".ico"}} width="100" height="100" class="img-responsive" alt="Generic placeholder thumbnail">
+                  <h4 class = "filename">{{name}}</h4>
+                  <span class="text-muted">{{type}}</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+            <div id="nomenu" class="col-xs-6 col-sm-2 placeholder file-placeholder">
+              <img class="upload" src="/static/icon/upload_f.ico/" width="100" height="100" alt="Generic placeholder thumbnail" onclick="javascript:fileselect()">
+              <h4>upload</h4>
+            </div>
+          </div>
+          <h2 class="sub-header">File Information</h2>
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Last Modified time</th>
+                </tr>
+              </thead>
+              <tbody id="file-inform">
+                {% for name,type,class,id,size,time in list%}
+                  <tr>
+                    <td>{{"%03d" % id}}</td>
+                    <td>{{name}}</td>
+                    <td>{{type}}</td>
+                    <td>{{size}}</td>
+                    <td>{{time}}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/static/js/bootstrap.min.js"></script>
+  </body>
+</html>
